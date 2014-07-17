@@ -30,9 +30,7 @@ void Map_Callback(const nav_msgs::OccupancyGridConstPtr &map_msg){
                 float64 w
     int8[] data
 */
-    vector<int> map;
-    for (int i = 0; i < 1000; i++)
-        map.push_back(i);
+    vector<int> map(map_msg->data.begin(), map_msg->data.end());
     ofstream FILE(msg_vector_file.c_str(), ios::out | ofstream::binary);
     copy(map.begin(), map.end(), ostreambuf_iterator<char> (FILE));
     FILE.close();
@@ -70,10 +68,10 @@ void read(){
 
 int main(int argc, char *argv[]){
     //ros::init(argc, argv, "save_map_msg");
-    save();
-    read();
-    //ros::NodeHandle nMap;
-    //ros::Subscriber nmapSub = nMap.subscribe("/map", 1, Map_Callback);
+    //save();
+    //read();
+    ros::NodeHandle nMap;
+    ros::Subscriber nmapSub = nMap.subscribe("/map", 1, Map_Callback);
 
     //ros::spin();
 
