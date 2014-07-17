@@ -67,7 +67,7 @@ void read(){
 }
 
 int main(int argc, char *argv[]){
-    //ros::init(argc, argv, "save_map_msg");
+    ros::init(argc, argv, "save_map_msg");
     //save();
     //read();
     ros::NodeHandle nMap;
