@@ -43,7 +43,7 @@ void Map_Callback(const nav_msgs::OccupancyGridConstPtr &map_msg){
     int size = map_msg->data.size();
     int nPoints = 0;
     for (size_t i = 0; i < size; i++){
-        if (map_msg->data.at(i) == 0){
+        if (map_msg->data.at(i) == 100){
             //cout<<"Map["<<i<<"]"<<int(map_msg->data.at(i))<<endl;
             nPoints++;
         }
@@ -59,12 +59,13 @@ void Map_Callback(const nav_msgs::OccupancyGridConstPtr &map_msg){
 
     int nCount = 0;
     for (int i = 0; i < size; i++){
-        if (map_msg->data.at(i) == 0){
-            int y = i % width;
-            int x = (i - y) / width;
-            //cout<< "(x, y): " << "(" << x << "," << y <<")" <<endl;
+        if (map_msg->data.at(i) == 100){
+            int x = i % width;
+            int y = (i - x) / width;
+            cout<< "(x, y): " << "(" << x << "," << y <<")"
+                << "(px, py): " << "(" << x * resolution + originX << "," << -y * resolution - originY << ")" <<endl;
             map_cloud->points.at(nCount).x = x * resolution + originX;
-            map_cloud->points.at(nCount).y = y * resolution - originY;
+            map_cloud->points.at(nCount).y = -y * resolution - originY;
             map_cloud->points.at(nCount).z = 0;
             nCount++;
             if (nCount >= nPoints)

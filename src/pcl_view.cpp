@@ -1,37 +1,15 @@
-#include "includes.h"
-
-typedef pcl::PointXYZ PointT;
-
-std::string pcd_file;
-
-void Print_Help(){
-    std::cerr<<"Usage:\tprogram\tpcd_file"<<std::endl;
-}
-
-void show_pcd(){
-
-    pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>);
-    pcl::io::loadPCDFile(pcd_file, *cloud);
-
-    pcl::visualization::PCLVisualizer viewer("pcl viewer");
-
-    pcl::visualization::PointCloudColorHandlerCustom<PointT> color(cloud, 255, 0, 0);
-    viewer.addPointCloud(cloud, color, "pcl");
-
-    while(!viewer.wasStopped()){
-        viewer.spinOnce();
-    }
-
-}
+#include "pcl_view.h"
 
 int main(int argc, char** argv){
 
     std::vector<int> filenames;
     filenames = pcl::console::parse_file_extension_argument (argc, argv, ".pcd");
-    if (filenames.size () != 1)
-        Print_Help();
+    if (filenames.size () != 1){
+        cout<< "Usage: " << argv[0] << " " << "pcdfile.pcd" <<endl;
+        return -1;
+    }
 
-    pcd_file = argv[filenames[0]];
-    show_pcd();
+    std::string pcd_file = argv[filenames[0]];
+    show_pcd(pcd_file);
 }
 

@@ -5,6 +5,8 @@
 #include <iostream>
 #include <algorithm>
 #include <iterator>
+#include <time.h>
+#include <list>
 
 #include <nav_msgs/OccupancyGrid.h>
 #include <ros/ros.h>
@@ -32,5 +34,6 @@
 #define PERPENDICULAR_TOLERANCE 0.2 // error tolerance for perpendicular
 #define MAX_CLUSTER  10 // maximum plane number for plane segmentation
 #define MIN_LINE_SIZE 20 // minimun line size for line segmentation
+#define PointT pcl::PointXYZ
 const std::string msg_vector_file("map_vector");
 #endif // INCLUDES_H

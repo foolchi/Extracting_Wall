@@ -122,7 +122,10 @@ target_link_libraries(save_map_vector
    ${catkin_LIBRARIES}
  )
 
-
+add_executable(wall src/wall.cpp)
+target_link_libraries(wall
+   ${catkin_LIBRARIES} ${PCL_LIBRARIES} libvtkCommon.so libvtkFiltering.so libvtkRendering.so
+ )
 
 ## Declare a cpp executable
 # add_executable(extracting_wall_node src/extracting_wall_node.cpp)
