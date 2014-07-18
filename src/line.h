@@ -1,6 +1,6 @@
 #ifndef LINE_H
 #define LINE_H
-
+#include "includes.h"
 
 
 class Line{
@@ -22,27 +22,17 @@ public:
         return a * x + b;
     }
 
-    float a, b;
-};
-
-class Line2{
-    // Line: a * x + b * y = 1;
-
-public:
-    Line2(){
-        a = b = 0;
+    float pointDistance(float x, float y){
+        return fabs(y - a * x - b) / sqrt(a * a + 1);
     }
 
-    Line2 (float a, float b){
-        this->a = a;
-        this->b = b;
+    float getAngle(){
+        if (fabs(a) >= 1 / TOLERANCE){
+            return a > 0 ? M_PI / 2 : - M_PI / 2;
+        }
+        return atan(a);
     }
 
-    Line2 (const Line2 & line){
-        a = line.a; b = line.b;
-    }
-
-private:
     float a, b;
 };
 

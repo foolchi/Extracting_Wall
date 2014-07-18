@@ -3,6 +3,8 @@
 
 std::vector<Wall> walls;
 nav_msgs::OccupancyGridConstPtr mapMsg;
+std::vector<Wall> showWalls;
+float minLength = -1;
 bool saved = false;
 void Map_Callback(const nav_msgs::OccupancyGridConstPtr &map_msg){
     if (saved){
@@ -10,7 +12,7 @@ void Map_Callback(const nav_msgs::OccupancyGridConstPtr &map_msg){
     }
     mapMsg = map_msg;
     saved = true;
-    std::vector<Wall> showWalls;
+
     for (int i = 0; i < walls.size(); i++){
         Wall wall = walls[i];
         wall.setMapMsg(mapMsg);
@@ -19,13 +21,21 @@ void Map_Callback(const nav_msgs::OccupancyGridConstPtr &map_msg){
         wall.print();
         showWalls.push_back(wall);
     }
-    show_wall(showWalls);
 
+    show_wall(showWalls, minLength);
+    show_wall(wall_merge(showWalls), minLength);
 }
 
 int main(int argc, char * argv[]){
 
     bool debug = true, visual = true;
+
+    float ftemp;
+    if (pcl::console::parse(argc, argv, "-l", ftemp) >= 0){
+        if (ftemp > 0){
+            minLength = ftemp;
+        }
+    }
 
     std::vector<int> filenames;
     filenames = pcl::console::parse_file_extension_argument (argc, argv, ".pcd");

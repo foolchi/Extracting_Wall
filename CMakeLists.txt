@@ -127,6 +127,11 @@ target_link_libraries(wall
    ${catkin_LIBRARIES} ${PCL_LIBRARIES} libvtkCommon.so libvtkFiltering.so libvtkRendering.so
  )
 
+add_executable(extract_test src/test.cpp)
+target_link_libraries(extract_test
+   ${catkin_LIBRARIES} ${PCL_LIBRARIES} libvtkCommon.so libvtkFiltering.so libvtkRendering.so
+ )
+
 ## Declare a cpp executable
 # add_executable(extracting_wall_node src/extracting_wall_node.cpp)
 

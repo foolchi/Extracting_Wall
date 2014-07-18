@@ -2,6 +2,7 @@
 #define WALL_H
 #include "includes.h"
 #include "line.h"
+#include "pcl_view.h"
 
 struct Point{
     float x, y;
@@ -51,6 +52,46 @@ public:
         return sqrt(dx * dx + dy * dy);
     }
 
+    bool merge(Wall w){
+        std::vector<PointPair> pPairResult, pPair1, pPair2;
+        pPair1 = pointPairList;
+        pPair2 = w.getPairList();
+
+        for (int i = 0; i < pPair2.size(); i++){
+            pPair2[i].pStart.y = l.getY(pPair2[i].pStart.x);
+            pPair2[i].pEnd.y = l.getY(pPair2[i].pEnd.x);
+        }
+
+        PointPair currentPointPair, mergedPair;
+
+        int iP1 = 0, iP2 = 0;
+        mergedPair = ((pPair1[iP1].pStart.x < pPair2[iP2].pStart.x) || (pPair1[iP1].pStart.y < pPair2[iP2].pStart.y)) ?
+                    pPair1[iP1++] : pPair2[iP2++];
+
+        for ( ; iP1 < pPair1.size() && iP2 < pPair2.size(); ){
+            currentPointPair = ((pPair1[iP1].pStart.x < pPair2[iP2].pStart.x) || (pPair1[iP1].pStart.y < pPair2[iP2].pStart.y)) ?
+                        pPair1[iP1++] : pPair2[iP2++];
+            if (currentPointPair.pStart.x < mergedPair.pEnd.x || currentPointPair.pStart.y < mergedPair.pEnd.y){
+                if ((currentPointPair.pEnd.x > mergedPair.pEnd.x) || (currentPointPair.pEnd.y > mergedPair.pEnd.y)){
+                    mergedPair.pEnd = currentPointPair.pEnd;
+                }
+                continue;
+            }
+
+            pPairResult.push_back(mergedPair);
+            mergedPair = currentPointPair;
+        }
+
+        while (iP1 < pPair1.size()){
+            pPairResult.push_back(pPair1[iP1++]);
+        }
+        while (iP2 < pPair2.size()){
+            pPairResult.push_back(pPair2[iP2++]);
+        }
+
+        pointPairList = pPairResult;
+    }
+
     bool isObstacle(Point p){
 
         /*
@@ -91,7 +132,7 @@ public:
         }
 
         cout<< "nObstacle: " << nObstacle << ", nUnknown: " << nUnknown << ", nEmpty: " << nEmpty <<endl;
-        if (nObstacle + nUnknown >= nEmpty)
+        if (nUnknown >= nEmpty)
             return true;
         return false;
     }
@@ -106,14 +147,15 @@ public:
             pEnd = pStart;
             for (int i = 1; i < cloudSize; i++){
                 pCurrent.x = cloud->points[i].x; pCurrent.y = l.getY(pCurrent.x);
-                if (distance(pEnd, pCurrent) <= precision * 3){
+                if (distance(pEnd, pCurrent) <= precision * 10){
                     pEnd = pCurrent;
                     continue;
                 }
                 else {
+
                     pMiddle.x = (pEnd.x + pCurrent.x) / 2.0f;
                     pMiddle.y = l.getY(pMiddle.x);
-                    if (isObstacle(pMiddle)){
+                    if (isObstacle(pMiddle) && !isObstacle(pCurrent) && !isObstacle(pEnd)){
                         pEnd = pCurrent;
                     }
                     else {
@@ -130,6 +172,18 @@ public:
                 pointPairList.push_back(pPair);
             }
         }
+    }
+
+    float length(){
+        float length = 0, dx, dy, d;
+        int pairSize = pointPairList.size();
+        for (int i = 0; i < pairSize; i++){
+            dx = pointPairList[i].pStart.x - pointPairList[i].pEnd.x;
+            dy = pointPairList[i].pStart.y - pointPairList[i].pEnd.y;
+            d = sqrt(dx * dx + dy * dy);
+            length += d;
+        }
+        return length;
     }
 
     void print(){
@@ -156,6 +210,14 @@ public:
         return pointPairList;
     }
 
+    float getPrecision(){
+        return precision;
+    }
+
+    Line getLine(){
+        return l;
+    }
+
 private:
     float precision, resolution, originX, originY;
     int width, height, mapSize;
@@ -166,32 +228,185 @@ private:
 
 };
 
+std::vector<Wall> wall_merge(std::vector<Wall> walls){
 
-void show_wall(std::vector<Wall> walls){
+
+    int wallSize = walls.size();
+
+    std::cout<< "Wall Merge Begin, wallSize: " << wallSize << endl;
+
+    std::vector<Wall> wallPositive, wallNegative;
+    for (int i = 0; i < wallSize; i++){
+        Wall wallTmp = walls[i];
+        if (fabs(wallTmp.getLine().a) < TOLERANCE || wallTmp.getLine().a > 0){
+            wallPositive.push_back(wallTmp);
+        }
+        else {
+            wallNegative.push_back(wallTmp);
+        }
+    }
+
+    std::cout<< "Positive wall size: " << wallPositive.size()
+             << ", Negative wall size: " << wallNegative.size() <<endl;
+
+    float angleTolerance = 5 * M_PI / 180, distanceTolerance = 0.5;
+    bool merged = false;
+
+    do {
+
+        merged = false;
+        int positiveSize = wallPositive.size();
+
+        std::cout<< "Current Positive wall size: " << positiveSize <<endl;
+
+        for (int i = 0; i < positiveSize - 1; i++){
+            for (int j = i + 1; j < positiveSize; j++){
+                Line l1 = wallPositive[i].getLine(), l2 = wallPositive[j].getLine();
+                if ((fabs(atan(l1.a) - atan(l2.a)) < angleTolerance)){
+                    Wall w1 = wallPositive[i], w2 = wallPositive[j];
+                    std::vector<PointPair> w2Pair = w2.getPairList();
+                    Point pStart = w2Pair.front().pStart, pEnd = w2Pair.back().pEnd;
+                    if (l1.pointDistance(pStart.x, pStart.y) < distanceTolerance && l1.pointDistance(pEnd.x, pEnd.y) < distanceTolerance){
+                        if (w1.length() > w2.length()){
+                            w1.merge(w2);
+                            wallPositive[i] = w1;
+                        }
+                        else {
+                            w2.merge(w1);
+                            wallPositive[i] = w2;
+                        }
+                        wallPositive.erase(wallPositive.begin() + j);
+                        merged = true;
+                        break;
+                    }
+                }
+            }
+            if (merged)
+                break;
+        }
+    } while (merged);
+
+    do {
+
+        merged = false;
+        int negativeSize = wallNegative.size();
+
+        std::cout<< "Current Negative wall size: " << negativeSize <<endl;
+
+        for (int i = 0; i < negativeSize - 1; i++){
+            for (int j = i + 1; j < negativeSize; j++){
+                Line l1 = wallNegative[i].getLine(), l2 = wallNegative[j].getLine();
+                if ((fabs(atan(l1.a) - atan(l2.a)) < angleTolerance)){
+                    Wall w1 = wallNegative[i], w2 = wallNegative[j];
+                    std::vector<PointPair> w2Pair = w2.getPairList();
+                    Point pStart = w2Pair.front().pStart, pEnd = w2Pair.back().pEnd;
+                    if (l1.pointDistance(pStart.x, pStart.y) < distanceTolerance && l1.pointDistance(pEnd.x, pEnd.y) < distanceTolerance){
+                        if (w1.length() > w2.length()){
+                            w1.merge(w2);
+                            wallNegative[i] = w1;
+                        }
+                        else {
+                            w2.merge(w1);
+                            wallNegative[i] = w2;
+                        }
+                        wallNegative.erase(wallNegative.begin() + j);
+                        merged = true;
+                        break;
+                    }
+                }
+            }
+            if (merged)
+                break;
+        }
+    } while (merged);
+
+    return wallNegative;
+}
+
+void show_wall(std::vector<Wall> walls, double minLength = -1){
     int n = 0;
     srand(time(NULL));
     cout<< "Walls Size: " << walls.size() <<endl;
 
-    pcl::visualization::PCLVisualizer viewer("wall viewer");
+    //pcl::visualization::PCLVisualizer viewer("wall viewer");
 
-    for (int i = 0; i < walls.size(); i++){
+    /*
+
+    for (int i = 0; i < walls.size() / 10; i++){
         Wall wall = walls[i];
-        int r = rand() % 256, g = rand() % 256, b = rand() % 256;
+        //int r = rand() % 255, g = rand() % 255, b = rand() % 255;
+
         std::vector<PointPair> pointPairs = wall.getPairList();
+        int r = (i * 17 + 27) % 256,
+                g = (i * 27 + 37) % 256,
+                b = (i * 37 + 47) % 256;
         cout<< "PairSize: " << pointPairs.size() <<endl;
+        cout<< "Color: " << "(" << r << ", " << g << ", " << b << ")" <<endl;
         for (int j = 0; j < pointPairs.size(); j++){
 
             PointPair p = pointPairs[j];
-            viewer.addLine<PointT>(PointT(p.pStart.x, p.pStart.y, 0), PointT(p.pEnd.x, p.pEnd.y, 0), r, g, b, boost::lexical_cast<std::string>(i * walls.size() + j + rand()), 0);
+            viewer.addLine<PointT>(PointT(p.pStart.x, p.pStart.y, 0), PointT(p.pEnd.x, p.pEnd.y, 0), r, g, b, boost::lexical_cast<std::string>(i * 77777 + j * 777 + 77), 0);
             n++;
         }
+    }
+    */
+
+    if (minLength <= 0){
+        minLength = 10 * walls[0].getPrecision();
+    }
+
+    std::vector<pcl::PointCloud<PointT>::Ptr > cloudVector;
+    for (int i = 0; i < walls.size(); i++){
+        Wall wall = walls[i];
+        float wLength = wall.length();
+        if (wLength <= minLength)
+            continue;
+
+        n++;
+        int nInsert = int(wLength / wall.getPrecision());
+        float insertStep = 1.0 * wLength / nInsert;
+
+        std::vector<PointPair> pointPairs = wall.getPairList();
+        pcl::PointCloud<PointT>::Ptr pCloud(new pcl::PointCloud<PointT>);
+        pCloud->height = 1; pCloud->width = pointPairs.size() + nInsert;
+        pCloud->resize(pCloud->height * pCloud->width);
+        int cloudIndex = 0;
+        for (int i = 0; i < pointPairs.size(); i++){
+            float xStart = pointPairs[i].pStart.x,
+                    yStart = pointPairs[i].pStart.y,
+                    xEnd = pointPairs[i].pEnd.x,
+                    yEnd = pointPairs[i].pEnd.y;
+            float pLength = sqrt((xEnd - xStart) * (xEnd - xStart) + (yEnd - yStart) * (yEnd - yStart));
+            int nCurrentInsert = int(pLength / insertStep);
+            if (nCurrentInsert == 0){
+                pCloud->points[cloudIndex].x = xStart;
+                pCloud->points[cloudIndex].y = yStart;
+                pCloud->points[cloudIndex].z = 0;
+                cloudIndex++;
+                continue;
+            }
+            float xStep = (xEnd - xStart) / nCurrentInsert, yStep = (yEnd - yStart) / nCurrentInsert;
+            float x = xStart, y = yStart;
+            for (int j = 0; j < nCurrentInsert; j++, cloudIndex++, x += xStep, y += yStep){
+                pCloud->points[cloudIndex].x = x;
+                pCloud->points[cloudIndex].y = y;
+                pCloud->points[cloudIndex].z = 0;
+            }
+        }
+        cloudVector.push_back(pCloud);
     }
 
     cout<< "Lines: " << n << endl;
 
-    while(!viewer.wasStopped()){
-        viewer.spinOnce();
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer;
+    viewer = simpleVectorVis(cloudVector);
+
+    while (!viewer->wasStopped ())
+    {
+        viewer->spinOnce (100);
+        boost::this_thread::sleep (boost::posix_time::microseconds (100000));
     }
+
 
 }
 

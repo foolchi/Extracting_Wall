@@ -7,6 +7,7 @@
 #include <iterator>
 #include <time.h>
 #include <list>
+#include <math.h>
 
 #include <nav_msgs/OccupancyGrid.h>
 #include <ros/ros.h>
