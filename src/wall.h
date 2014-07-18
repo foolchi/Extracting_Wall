@@ -94,14 +94,6 @@ public:
 
     bool isObstacle(Point p){
 
-        /*
-            int x = i % width;
-            int y = (i - x) / width;
-            //cout<< "(x, y): " << "(" << x << "," << y <<")" <<endl;
-            map_cloud->points.at(nCount).x = x * resolution + originX;
-            map_cloud->points.at(nCount).y = -y * resolution - originY;
-         */
-
         int iX = (int)((p.x - originX) / resolution), iY = (int)((-originY - p.y) / resolution);
         cout<< "(iX: " << iX << ", iY: " << iY << "), ";
         int index = iY * width + iX;
@@ -137,17 +129,52 @@ public:
         return false;
     }
 
+    bool isValidPoint(Point p){
+        int iX = (int)((p.x - originX) / resolution), iY = (int)((-originY - p.y) / resolution);
+        cout<< "(iX: " << iX << ", iY: " << iY << "), ";
+        int index = iY * width + iX;
+        int nEmpty = 0, nObstacle = 0, nUnknown = 0;
+        for (int i = -width; i <= width; i += width){
+            for (int j = -1; j <= 1; j++){
+                int currentIndex = index + j + i;
+                if (currentIndex < 0 || currentIndex >= mapSize)
+                    continue;
+                switch (mapMsg->data[currentIndex]){
+                case 0:
+                    nEmpty++;
+                    break;
+
+                case -1:
+                    nUnknown++;
+                    break;
+
+                case 100:
+                    nObstacle++;
+                    break;
+
+                default:
+                    nUnknown++;
+                    break;
+                }
+            }
+        }
+
+        if (nObstacle > 1)
+            return true;
+        return false;
+    }
+
     void extend(){
         int cloudSize = cloud->size();
 
         if (l.a != 0 && fabs(l.a) < 1 / TOLERANCE){
 
-            Point pStart, pEnd, pCurrent, pMiddle;
+            Point pStart, pEnd, pCurrent, pMiddle, pLeftMiddle, pRightMiddle;
             pStart.x = cloud->points[0].x, pStart.y = l.getY(pStart.x);
             pEnd = pStart;
             for (int i = 1; i < cloudSize; i++){
                 pCurrent.x = cloud->points[i].x; pCurrent.y = l.getY(pCurrent.x);
-                if (distance(pEnd, pCurrent) <= precision * 10){
+                if (distance(pEnd, pCurrent) <= precision * 20){
                     pEnd = pCurrent;
                     continue;
                 }
@@ -155,7 +182,12 @@ public:
 
                     pMiddle.x = (pEnd.x + pCurrent.x) / 2.0f;
                     pMiddle.y = l.getY(pMiddle.x);
-                    if (isObstacle(pMiddle) && !isObstacle(pCurrent) && !isObstacle(pEnd)){
+                    pLeftMiddle.x = (pCurrent.x + pMiddle.x) / 2.0f;
+                    pLeftMiddle.y = l.getY(pLeftMiddle.x);
+                    pRightMiddle.x = (pEnd.x + pMiddle.x) / 2.0f;
+                    pRightMiddle.y = l.getY(pRightMiddle.x);
+                    int nObstacle = isObstacle(pMiddle) ? 1 : 0 + isObstacle(pLeftMiddle) ? 1 : 0 + isObstacle(pRightMiddle) ? 1 : 0;
+                    if (nObstacle >= 1 && isValidPoint(pCurrent) && isValidPoint(pEnd)){
                         pEnd = pCurrent;
                     }
                     else {
@@ -226,6 +258,19 @@ private:
     std::vector<PointPair> pointPairList;
     pcl::PointCloud<PointT>::Ptr cloud;
 
+};
+
+class Room{
+public:
+    Room(){
+        walls.clear();
+    }
+
+    void addWall(Wall w){
+        walls.push_back(w);
+    }
+private:
+    std::vector<Wall> walls;
 };
 
 std::vector<Wall> wall_merge(std::vector<Wall> walls){
@@ -320,6 +365,9 @@ std::vector<Wall> wall_merge(std::vector<Wall> walls){
         }
     } while (merged);
 
+    for (int i = 0; i < wallPositive.size(); i++){
+        wallNegative.push_back(wallPositive[i]);
+    }
     return wallNegative;
 }
 
@@ -354,6 +402,8 @@ void show_wall(std::vector<Wall> walls, double minLength = -1){
     if (minLength <= 0){
         minLength = 10 * walls[0].getPrecision();
     }
+
+    cout<< "MinLength: " << minLength <<endl;
 
     std::vector<pcl::PointCloud<PointT>::Ptr > cloudVector;
     for (int i = 0; i < walls.size(); i++){
